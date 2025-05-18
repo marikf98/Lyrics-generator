@@ -22,7 +22,7 @@ train_loader = DataLoader(
 for batch in train_loader:
     print(batch['lyrics'].shape)         # torch.Size([32, 10, 100])
     print(batch['midi_features'].shape)  # torch.Size([32, 14])
-    break
+    # break
 
 # # if __name__ == '__main__':
 # #     print_hi('PyCharm')
