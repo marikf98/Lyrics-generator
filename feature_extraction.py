@@ -31,6 +31,7 @@ def load_and_process_lyrics(lyrics_path):
                 records.append({'band': band, 'song': song, 'lyrics': line.strip()})
 
     return pd.DataFrame(records)
+
 def extract_midi_features(midi_path):
     try:
         midi_data = pretty_midi.PrettyMIDI(midi_path)
