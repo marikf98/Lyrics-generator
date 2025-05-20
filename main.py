@@ -8,62 +8,21 @@ from LyricsRNN import LyricsRNN
 
 import feature_extraction
 from LyricsDataset import LyricsDataset
-
-from collections import Counter
-
-
-def build_vocab(df, min_freq=1):
-    """
-    Build a vocabulary from the lyrics dataset.
-
-    This function creates two mappings:
-    1. word2idx: maps each word to a unique integer index
-    2. idx2word: a list of words indexed by their corresponding ID
-
-    These mappings are essential for next-word prediction tasks where:
-    - Each target word (label) must be represented as an integer
-    - Model predictions (indices) must be converted back to words
-
-    The vocabulary includes:
-    - All words that appear with frequency >= min_freq
-    - Special tokens:
-        <pad>: used for padding sequences
-        <unk>: used to represent unknown or out-of-vocabulary words
-
-    Args:
-        df (pd.DataFrame): The dataframe containing the 'lyrics' column.
-        min_freq (int): Minimum frequency a word must have to be included in the vocabulary.
-
-    Returns:
-        word2idx (dict): Dictionary mapping words to indices.
-        idx2word (list): List mapping indices back to words.
-    """
-
-    counter = Counter()
-
-    for line in df['lyrics']:
-        tokens = line.strip().split()
-        counter.update(tokens)
-
-    # Filter rare words
-    vocab_words = [word for word, freq in counter.items() if freq >= min_freq]
-
-    # Special tokens
-    special_tokens = ['<pad>', '<unk>']
-    all_words = special_tokens + sorted(vocab_words)
-
-    word2idx = {word: idx for idx, word in enumerate(all_words)}
-    idx2word = all_words
-
-    return word2idx, idx2word
+import gensim.downloader as api
 
 
-word2vec = load("glove-wiki-gigaword-100")  # 100-dimensional GloVe
+
+
+word2vec = api.load("word2vec-google-news-300")
+VECTOR_SIZE = 300
 
 lyrics_df = feature_extraction.load_and_process_lyrics('lyrics_train_set.csv')
-enriched_lyrics_df = feature_extraction.merge_lyrics_with_midi_features(lyrics_df, './midi_files')
+expanded_lyrics = feature_extraction.expand_rows(lyrics_df)
+enriched_lyrics_df = feature_extraction.merge_lyrics_with_midi_features(expanded_lyrics, './midi_files')
+enriched_lyrics_df = feature_extraction.drop_rows_missing_midi_features(enriched_lyrics_df)
 
-word2idx, idx2word = build_vocab(enriched_lyrics_df, min_freq=2)
+
+word2idx, idx2word = feature_extraction.build_vocab(enriched_lyrics_df, min_freq=2)
 
 dataset = LyricsDataset(enriched_lyrics_df, word2vec, word2idx)
 
@@ -74,9 +33,11 @@ train_loader = DataLoader(
     num_workers=0
 )
 
+#=================================== up to here
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-embedding_dim = 100
+embedding_dim = 300
 hidden_dim = 128
 midi_dim = 14
 vocab_size = len(word2idx)

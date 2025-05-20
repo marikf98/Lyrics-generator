@@ -10,6 +10,7 @@ class LyricsDataset(Dataset):
         self.max_words = max_words
         self.embedding_dim = word2vec_model.vector_size
         self.samples = []
+        self.midi_keys = [k for k in lyrics_df.columns if k not in ['band', 'song', 'lyrics']]
 
         for _, row in self.lyrics_df.iterrows():
             tokens = row['lyrics'].strip().split()
@@ -31,10 +32,6 @@ class LyricsDataset(Dataset):
                     if not isinstance(midi_vec, torch.Tensor):
                         print(f"Invalid midi_vec for band={row['band']} song={row['song']}")
                     continue
-
-                # if input_vec is None or midi_vec is None or target_idx is None:
-                #     print("Skipping a sample with missing data.")
-                #     continue
 
                 self.samples.append({
                     'input_seq': input_vec,
@@ -76,16 +73,15 @@ class LyricsDataset(Dataset):
     def _extract_midi_features(self, row):
         try:
             midi_feats = []
-            for key in [
-                'num_of_instruments', 'num_of_drums', 'pitch_range', 'most_frequent_pitch',
-                'melodic_interval_mean', 'melodic_interval_std', 'tempo',
-                'avg_note_duration', 'onset_density', 'avg_velocity',
-                'key_signature', 'time_sig_numerator', 'time_sig_denominator'
-            ]:
+            for key in self.midi_keys:
                 val = row.get(key, None)
                 if val is None:
-                    return None  # Invalidate this row
-                midi_feats.append(float(val))
+                    print(f"Missing {key} for {row['band']} - {row['song']}")
+                    midi_feats.append(0.0) # Fallback for missing feature
+                elif isinstance(val, (list, np.ndarray)):
+                    midi_feats.extend(list(val))
+                else:
+                    midi_feats.append(float(val))
             return torch.tensor(midi_feats, dtype=torch.float32)
         except Exception as e:
             print(f"Error extracting MIDI vector: {e}")
